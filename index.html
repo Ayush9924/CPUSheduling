@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced CPU Scheduling Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="js/threejs.js" type="module" defer></script>
+    <script src="js/scheduler.js" type="module" defer></script>
+    <script src="js/app.js" type="module" defer></script>
+    <style>
+        #threejs-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.15;
+        }
+        .gantt-block {
+            transition: all 0.3s ease;
+        }
+        .gantt-block:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        .dark-mode-transition * {
+            transition: background-color 0.5s ease, color 0.5s ease;
+        }
+        /* Add these to your existing styles */
+.dark {
+    --tw-bg-opacity: 1;
+    background-color: rgba(17, 24, 39, var(--tw-bg-opacity));
+}
+
+.dark .bg-opacity-10 {
+    background-color: rgba(31, 41, 55, 0.7);
+}
+
+.dark .bg-gradient-to-r {
+    --tw-gradient-from: #1e3a8a;
+    --tw-gradient-to: #6b21a8;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.dark .bg-white {
+    background-color: rgba(31, 41, 55, 1);
+}
+
+.dark .text-gray-200 {
+    color: #e5e7eb;
+}
+
+.dark .text-gray-300 {
+    color: #d1d5db;
+}
+
+.dark .border-gray-600 {
+    border-color: #4b5563;
+}
+
+.dark .border-gray-500 {
+    border-color: #6b7280;
+}
+
+.dark .bg-gray-600 {
+    background-color: #4b5563;
+}
+
+.dark .bg-gray-700 {
+    background-color: #374151;
+}
+
+.dark .bg-gray-800 {
+    background-color: #1f2937;
+}
+
+.dark .bg-gray-900 {
+    background-color: #111827;
+}
+
+.dark .bg-blue-800 {
+    background-color: #1e40af;
+}
+
+.dark .bg-indigo-800 {
+    background-color: #5b21b6;
+}
+
+.dark .from-blue-800 {
+    --tw-gradient-from: #1e40af;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.dark .to-indigo-800 {
+    --tw-gradient-to: #5b21b6;
+}
+
+.dark .from-purple-800 {
+    --tw-gradient-from: #6b21a8;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.dark .to-indigo-800 {
+    --tw-gradient-to: #5b21b6;
+}
+    </style>
+</head>
+<body class="bg-gradient-to-r from-blue-900 via-purple-900 to-indigo-900 min-h-screen flex flex-col items-center text-white dark-mode-transition">
+
+    <!-- Three.js Background Container -->
+    <div id="threejs-container"></div>
+
+    <!-- Navbar -->
+    <nav class="w-full bg-gradient-to-r from-blue-800 to-indigo-800 p-5 shadow-lg flex justify-between items-center dark:bg-gray-900">
+        <h1 class="text-3xl font-extrabold tracking-wide drop-shadow-lg flex items-center">
+            <span class="mr-3">⚙️</span> 
+            <span class="bg-clip-text text-transparent bg-gradient-to-r from-green-400 to-blue-500">
+                Advanced CPU Scheduling Simulator
+            </span>
+        </h1>
+        <div class="flex items-center space-x-6">
+            <button id="darkModeToggle" class="p-2 rounded-full bg-gray-700 text-yellow-300 hover:bg-gray-600 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="mt-10 p-10 bg-white bg-opacity-10 backdrop-blur-lg rounded-3xl shadow-2xl max-w-6xl w-full mx-4 dark:bg-gray-800 dark:bg-opacity-90">
+        <h2 class="text-4xl font-bold text-center mb-6 text-gray-200 drop-shadow-md dark:text-white">CPU Scheduler</h2>
+        <p class="text-center text-gray-300 mb-6 dark:text-gray-300">Enter process details and run the simulation</p>
+
+        <!-- Algorithm Selection -->
+        <div class="flex flex-wrap justify-center gap-6 mb-8">
+            <div class="flex-1 min-w-[300px]">
+                <label class="block font-semibold text-gray-300 mb-2 dark:text-gray-200">Scheduling Algorithm:</label>
+                <select id="algorithm" class="w-full p-3 border rounded-md bg-gray-800 text-white shadow-md dark:bg-gray-700 dark:border-gray-600">
+                    <option value="fcfs">First Come First Serve (FCFS)</option>
+                    <option value="sjf">Shortest Job First (Non-preemptive SJF)</option>
+                    <option value="srtf">Shortest Remaining Time First (Preemptive SJF)</option>
+                    <option value="priority-np">Priority Scheduling (Non-preemptive)</option>
+                    <option value="priority-p">Priority Scheduling (Preemptive)</option>
+                    <option value="rr">Round Robin</option>
+                </select>
+            </div>
+            
+            <div id="quantumContainer" class="flex-1 min-w-[300px] hidden">
+                <label class="block font-semibold text-gray-300 mb-2 dark:text-gray-200">Time Quantum:</label>
+                <input type="number" id="quantumTime" min="1" value="2" class="w-full p-3 border rounded-md bg-gray-800 text-white shadow-md dark:bg-gray-700 dark:border-gray-600">
+            </div>
+        </div>
+
+        <!-- Input Table -->
+        <div class="overflow-x-auto mb-8">
+            <table class="w-full border-collapse text-center rounded-xl overflow-hidden shadow-lg">
+                <thead class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white dark:from-purple-800 dark:to-indigo-800">
+                    <tr>
+                        <th class="p-4">Process</th>
+                        <th class="p-4">Arrival Time</th>
+                        <th class="p-4">Burst Time</th>
+                        <th id="priorityHeader" class="p-4 hidden">Priority</th>
+                    </tr>
+                </thead>
+                <tbody id="processTable" class="bg-white text-gray-900 dark:bg-gray-700 dark:text-gray-200">
+                    <!-- Dynamic Rows Here -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex flex-wrap justify-between items-center p-6 bg-gray-900 bg-opacity-20 rounded-2xl shadow-lg dark:bg-gray-700 dark:bg-opacity-50">
+            <div class="mb-4 sm:mb-0">
+                <label class="block font-semibold text-gray-300 mb-2 dark:text-gray-200">Processes:</label>
+                <div class="flex items-center">
+                    <button id="decreaseProcess" class="p-2 bg-red-500 hover:bg-red-700 text-white rounded-md shadow-md transition">-</button>
+                    <span id="processCount" class="px-4 font-semibold text-lg text-white">3</span>
+                    <button id="increaseProcess" class="p-2 bg-green-500 hover:bg-green-700 text-white rounded-md shadow-md transition">+</button>
+                </div>
+            </div>
+
+            <div class="mb-4 sm:mb-0">
+                <label class="block font-semibold text-gray-300 mb-2 dark:text-gray-200">Context Switch Time:</label>
+                <input type="number" id="contextSwitchTime" min="0" class="p-2 border rounded-md w-20 bg-gray-800 text-white shadow-md dark:bg-gray-700 dark:border-gray-600" value="0">
+            </div>
+
+            <div class="flex space-x-4">
+                <button id="runBtn" class="px-6 py-3 bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white rounded-md shadow-xl transition flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                    </svg>
+                    Run Simulation
+                </button>
+                <button id="resetBtn" class="px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-800 hover:from-gray-700 hover:to-gray-900 text-white rounded-md shadow-xl transition">
+                    Reset
+                </button>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="mt-10">
+            <!-- Gantt Chart -->
+            <h3 class="text-2xl font-bold text-center mt-8 text-gray-300 dark:text-white">Gantt Chart</h3>
+            <div id="ganttChart" class="flex mt-6 p-4 bg-gray-200 border rounded-lg overflow-x-auto shadow-md dark:bg-gray-700 dark:border-gray-600">
+                <!-- Dynamic Gantt Chart Here -->
+                <div class="text-center text-gray-500 dark:text-gray-400 w-full py-10">Gantt chart will appear here after simulation</div>
+            </div>
+
+            <!-- 3D Gantt Chart -->
+            <div id="threejs-gantt" class="w-full h-64 mt-6 bg-gray-800 rounded-lg overflow-hidden">
+                <!-- Three.js Gantt Chart will render here -->
+            </div>
+
+            <!-- Output Table -->
+            <h3 class="text-2xl font-bold text-center mt-8 text-gray-300 dark:text-white">Results</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                <div class="bg-white bg-opacity-10 p-6 rounded-xl shadow-md dark:bg-gray-700">
+                    <h4 class="text-xl font-semibold mb-4 text-center text-gray-200 dark:text-white">Process Metrics</h4>
+                    <div class="overflow-x-auto">
+                        <table class="w-full border-collapse text-center shadow-lg rounded-lg overflow-hidden">
+                            <thead class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white dark:from-purple-800 dark:to-indigo-800">
+                                <tr>
+                                    <th class="p-3">Process</th>
+                                    <th class="p-3">Arrival</th>
+                                    <th class="p-3">Burst</th>
+                                    <th class="p-3">Completion</th>
+                                    <th class="p-3">Turnaround</th>
+                                    <th class="p-3">Waiting</th>
+                                </tr>
+                            </thead>
+                            <tbody id="outputTable" class="bg-white text-gray-900 dark:bg-gray-600 dark:text-gray-200">
+                                <!-- Dynamic Output Here -->
+                                <tr>
+                                    <td colspan="6" class="p-4 text-gray-500 dark:text-gray-400">Results will appear here after simulation</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="bg-white bg-opacity-10 p-6 rounded-xl shadow-md dark:bg-gray-700">
+                    <h4 class="text-xl font-semibold mb-4 text-center text-gray-200 dark:text-white">Performance Metrics</h4>
+                    <div id="performanceMetrics" class="space-y-4 text-gray-200 dark:text-gray-200">
+                        <div class="flex justify-between items-center p-3 bg-gray-800 bg-opacity-50 rounded-lg dark:bg-gray-600">
+                            <span>Average Turnaround Time:</span>
+                            <span id="avgTAT" class="font-bold">-</span>
+                        </div>
+                        <div class="flex justify-between items-center p-3 bg-gray-800 bg-opacity-50 rounded-lg dark:bg-gray-600">
+                            <span>Average Waiting Time:</span>
+                            <span id="avgWT" class="font-bold">-</span>
+                        </div>
+                        <div class="flex justify-between items-center p-3 bg-gray-800 bg-opacity-50 rounded-lg dark:bg-gray-600">
+                            <span>Total Execution Time:</span>
+                            <span id="totalTime" class="font-bold">-</span>
+                        </div>
+                        <div class="flex justify-between items-center p-3 bg-gray-800 bg-opacity-50 rounded-lg dark:bg-gray-600">
+                            <span>Throughput:</span>
+                            <span id="throughput" class="font-bold">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="w-full py-6 mt-10 bg-gradient-to-r from-blue-800 to-indigo-800 text-center text-gray-300 dark:bg-gray-900">
+        <p>Advanced CPU Scheduling Simulator | OS Lab Project</p>
+    </footer>
+
+</body>
+</html>
